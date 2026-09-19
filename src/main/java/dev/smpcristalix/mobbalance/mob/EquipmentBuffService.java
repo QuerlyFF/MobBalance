@@ -10,18 +10,14 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.random.RandomGenerator;
 
-/**
- * Усиливает экипировку мобов. Все вероятности приходят из config.yml.
- */
+/** Усиливает экипировку мобов. */
 public final class EquipmentBuffService {
 
     public void apply(LivingEntity entity, MobBalanceSettings settings, RandomGenerator random) {
         EntityEquipment equipment = entity.getEquipment();
         if (equipment == null) return;
 
-        if (random.nextDouble() < settings.armorChance()) {
-            applyArmor(equipment, settings, random);
-        }
+        if (random.nextDouble() < settings.armorChance()) applyArmor(equipment, settings, random);
         enchantArmor(equipment, settings, random);
 
         EntityType type = entity.getType();
@@ -29,29 +25,41 @@ public final class EquipmentBuffService {
             applyDrownedWeapon(equipment, settings, random);
         } else if (isZombieFamily(type)) {
             applyZombieWeapon(equipment, settings, random);
-        } else if (isSkeletonFamily(type)) {
+        } else if (isBowSkeletonFamily(type)) {
             ensureBow(equipment, settings);
         }
 
         enchantMainHand(equipment, settings, random);
     }
 
+    public void applyCrossbowBuff(LivingEntity entity, MobBalanceSettings settings) {
+        EntityEquipment equipment = entity.getEquipment();
+        if (equipment == null) return;
+
+        ItemStack weapon = equipment.getItemInMainHand();
+        if (entity.getType() == EntityType.PILLAGER && weapon.getType() != Material.CROSSBOW) {
+            weapon = new ItemStack(Material.CROSSBOW);
+            equipment.setItemInMainHand(weapon);
+            equipment.setItemInMainHandDropChance(settings.generatedItemDropChance());
+        }
+        if (weapon.getType() != Material.CROSSBOW) return;
+
+        addAtLeast(weapon, Enchantment.QUICK_CHARGE, settings.pillagerQuickChargeLevel());
+        equipment.setItemInMainHandDropChance(settings.generatedItemDropChance());
+    }
+
     private void applyArmor(EntityEquipment equipment, MobBalanceSettings settings, RandomGenerator random) {
         ArmorTier tier = ArmorTier.values()[weightedIndex(settings.armorTierWeights(), random)];
         int pieceCount = weightedIndex(settings.armorPieceCountWeights(), random) + 1;
-
         int[] slots = {0, 1, 2, 3};
         shuffle(slots, random);
-        for (int i = 0; i < pieceCount; i++) {
-            upgradeArmorSlot(equipment, slots[i], tier, settings.generatedItemDropChance());
-        }
+        for (int i = 0; i < pieceCount; i++) upgradeArmorSlot(equipment, slots[i], tier, settings.generatedItemDropChance());
     }
 
     private void upgradeArmorSlot(EntityEquipment equipment, int slot, ArmorTier tier, float dropChance) {
         ItemStack current = getArmor(equipment, slot);
         ItemStack candidate = new ItemStack(tier.material(slot));
         if (!shouldReplaceArmor(current, candidate)) return;
-
         setArmor(equipment, slot, candidate);
         setArmorDropChance(equipment, slot, dropChance);
     }
@@ -63,7 +71,6 @@ public final class EquipmentBuffService {
 
     private void applyZombieWeapon(EntityEquipment equipment, MobBalanceSettings settings, RandomGenerator random) {
         if (random.nextDouble() >= settings.zombieWeaponChance()) return;
-
         Material weapon = random.nextDouble() < 0.70 ? Material.IRON_SWORD : Material.IRON_SHOVEL;
         equipment.setItemInMainHand(new ItemStack(weapon));
         equipment.setItemInMainHandDropChance(settings.generatedItemDropChance());
@@ -71,10 +78,7 @@ public final class EquipmentBuffService {
 
     private void applyDrownedWeapon(EntityEquipment equipment, MobBalanceSettings settings, RandomGenerator random) {
         if (random.nextDouble() >= settings.drownedWeaponChance()) return;
-
-        Material weapon = random.nextDouble() < settings.drownedTridentShare()
-                ? Material.TRIDENT
-                : Material.IRON_SWORD;
+        Material weapon = random.nextDouble() < settings.drownedTridentShare() ? Material.TRIDENT : Material.IRON_SWORD;
         equipment.setItemInMainHand(new ItemStack(weapon));
         equipment.setItemInMainHandDropChance(settings.generatedItemDropChance());
     }
@@ -82,23 +86,17 @@ public final class EquipmentBuffService {
     private void ensureBow(EntityEquipment equipment, MobBalanceSettings settings) {
         ItemStack current = equipment.getItemInMainHand();
         if (current.getType() == Material.BOW) return;
-
         equipment.setItemInMainHand(new ItemStack(Material.BOW));
         equipment.setItemInMainHandDropChance(settings.generatedItemDropChance());
     }
 
     private void enchantArmor(EntityEquipment equipment, MobBalanceSettings settings, RandomGenerator random) {
-        enchantArmorPiece(equipment, 0, settings, random);
-        enchantArmorPiece(equipment, 1, settings, random);
-        enchantArmorPiece(equipment, 2, settings, random);
-        enchantArmorPiece(equipment, 3, settings, random);
+        for (int slot = 0; slot < 4; slot++) enchantArmorPiece(equipment, slot, settings, random);
     }
 
     private void enchantArmorPiece(EntityEquipment equipment, int slot, MobBalanceSettings settings, RandomGenerator random) {
         ItemStack item = getArmor(equipment, slot);
-        if (item == null || item.getType().isAir()) return;
-        if (random.nextDouble() >= settings.armorEnchantChance()) return;
-
+        if (item == null || item.getType().isAir() || random.nextDouble() >= settings.armorEnchantChance()) return;
         addAtLeast(item, Enchantment.PROTECTION, random.nextInt(1, 4));
         if (random.nextDouble() < 0.20) addAtLeast(item, Enchantment.UNBREAKING, random.nextInt(1, 4));
         if (random.nextDouble() < 0.10) addAtLeast(item, Enchantment.THORNS, 1);
@@ -107,8 +105,7 @@ public final class EquipmentBuffService {
 
     private void enchantMainHand(EntityEquipment equipment, MobBalanceSettings settings, RandomGenerator random) {
         ItemStack weapon = equipment.getItemInMainHand();
-        if (weapon.getType().isAir()) return;
-        if (random.nextDouble() >= settings.weaponEnchantChance()) return;
+        if (weapon.getType().isAir() || random.nextDouble() >= settings.weaponEnchantChance()) return;
 
         switch (weapon.getType()) {
             case BOW -> {
@@ -117,29 +114,26 @@ public final class EquipmentBuffService {
                 if (random.nextDouble() < 0.08) addAtLeast(weapon, Enchantment.FLAME, 1);
             }
             case TRIDENT -> addAtLeast(weapon, Enchantment.IMPALING, random.nextInt(1, 4));
-            case IRON_SWORD -> {
+            case IRON_SWORD, STONE_SWORD -> {
                 addAtLeast(weapon, Enchantment.SHARPNESS, random.nextInt(1, 4));
                 if (random.nextDouble() < 0.15) addAtLeast(weapon, Enchantment.KNOCKBACK, 1);
                 if (random.nextDouble() < 0.08) addAtLeast(weapon, Enchantment.FIRE_ASPECT, 1);
             }
             case IRON_SHOVEL -> addAtLeast(weapon, Enchantment.SHARPNESS, random.nextInt(1, 3));
-            default -> {
-                return;
-            }
+            default -> { return; }
         }
         equipment.setItemInMainHandDropChance(settings.generatedItemDropChance());
     }
 
     private void addAtLeast(ItemStack item, Enchantment enchantment, int level) {
-        int current = item.getEnchantmentLevel(enchantment);
-        if (level > current) item.addUnsafeEnchantment(enchantment, level);
+        if (level > item.getEnchantmentLevel(enchantment)) item.addUnsafeEnchantment(enchantment, level);
     }
 
     private boolean isZombieFamily(EntityType type) {
         return type == EntityType.ZOMBIE || type == EntityType.ZOMBIE_VILLAGER || type == EntityType.HUSK;
     }
 
-    private boolean isSkeletonFamily(EntityType type) {
+    private boolean isBowSkeletonFamily(EntityType type) {
         return type == EntityType.SKELETON || type == EntityType.STRAY || type == EntityType.BOGGED;
     }
 
@@ -147,7 +141,6 @@ public final class EquipmentBuffService {
         int total = 0;
         for (int weight : weights) total += Math.max(0, weight);
         if (total <= 0) return 0;
-
         int roll = random.nextInt(total);
         for (int i = 0; i < weights.length; i++) {
             roll -= Math.max(0, weights[i]);
@@ -159,9 +152,7 @@ public final class EquipmentBuffService {
     private void shuffle(int[] values, RandomGenerator random) {
         for (int i = values.length - 1; i > 0; i--) {
             int j = random.nextInt(i + 1);
-            int tmp = values[i];
-            values[i] = values[j];
-            values[j] = tmp;
+            int tmp = values[i]; values[i] = values[j]; values[j] = tmp;
         }
     }
 
@@ -207,44 +198,13 @@ public final class EquipmentBuffService {
 
     private enum ArmorTier {
         LEATHER, GOLD, CHAINMAIL, IRON, DIAMOND;
-
         private Material material(int slot) {
             return switch (this) {
-                case LEATHER -> switch (slot) {
-                    case 0 -> Material.LEATHER_HELMET;
-                    case 1 -> Material.LEATHER_CHESTPLATE;
-                    case 2 -> Material.LEATHER_LEGGINGS;
-                    case 3 -> Material.LEATHER_BOOTS;
-                    default -> throw new IllegalArgumentException("Unknown armor slot: " + slot);
-                };
-                case GOLD -> switch (slot) {
-                    case 0 -> Material.GOLDEN_HELMET;
-                    case 1 -> Material.GOLDEN_CHESTPLATE;
-                    case 2 -> Material.GOLDEN_LEGGINGS;
-                    case 3 -> Material.GOLDEN_BOOTS;
-                    default -> throw new IllegalArgumentException("Unknown armor slot: " + slot);
-                };
-                case CHAINMAIL -> switch (slot) {
-                    case 0 -> Material.CHAINMAIL_HELMET;
-                    case 1 -> Material.CHAINMAIL_CHESTPLATE;
-                    case 2 -> Material.CHAINMAIL_LEGGINGS;
-                    case 3 -> Material.CHAINMAIL_BOOTS;
-                    default -> throw new IllegalArgumentException("Unknown armor slot: " + slot);
-                };
-                case IRON -> switch (slot) {
-                    case 0 -> Material.IRON_HELMET;
-                    case 1 -> Material.IRON_CHESTPLATE;
-                    case 2 -> Material.IRON_LEGGINGS;
-                    case 3 -> Material.IRON_BOOTS;
-                    default -> throw new IllegalArgumentException("Unknown armor slot: " + slot);
-                };
-                case DIAMOND -> switch (slot) {
-                    case 0 -> Material.DIAMOND_HELMET;
-                    case 1 -> Material.DIAMOND_CHESTPLATE;
-                    case 2 -> Material.DIAMOND_LEGGINGS;
-                    case 3 -> Material.DIAMOND_BOOTS;
-                    default -> throw new IllegalArgumentException("Unknown armor slot: " + slot);
-                };
+                case LEATHER -> new Material[]{Material.LEATHER_HELMET, Material.LEATHER_CHESTPLATE, Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS}[slot];
+                case GOLD -> new Material[]{Material.GOLDEN_HELMET, Material.GOLDEN_CHESTPLATE, Material.GOLDEN_LEGGINGS, Material.GOLDEN_BOOTS}[slot];
+                case CHAINMAIL -> new Material[]{Material.CHAINMAIL_HELMET, Material.CHAINMAIL_CHESTPLATE, Material.CHAINMAIL_LEGGINGS, Material.CHAINMAIL_BOOTS}[slot];
+                case IRON -> new Material[]{Material.IRON_HELMET, Material.IRON_CHESTPLATE, Material.IRON_LEGGINGS, Material.IRON_BOOTS}[slot];
+                case DIAMOND -> new Material[]{Material.DIAMOND_HELMET, Material.DIAMOND_CHESTPLATE, Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS}[slot];
             };
         }
     }
