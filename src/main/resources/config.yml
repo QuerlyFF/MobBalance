@@ -1,0 +1,85 @@
+# MobBalance — базовый баланс мобов для SMP Cristalix.
+# Все значения ниже применяются только на сложности HARD.
+
+general:
+  enabled: true
+  difficulty: HARD
+  # Причины спавна, к которым применяются усиления.
+  spawn-reasons:
+    - NATURAL
+    - CHUNK_GEN
+    - REINFORCEMENTS
+    - VILLAGE_INVASION
+    - PATROL
+    - SPAWNER
+    - TRIAL_SPAWNER
+
+stats:
+  # Случайный бонус определяется один раз при появлении моба.
+  health-bonus-min-percent: 0.0
+  health-bonus-max-percent: 100.0
+  damage-bonus-min-percent: 0.0
+  damage-bonus-max-percent: 100.0
+
+equipment:
+  # На Hard берём ванильный максимальный шанс брони ~15% и усиливаем x8,
+  # но не даём ему уйти выше установленного cap.
+  multiplier: 8.0
+  armor-base-chance: 0.15
+  armor-cap: 0.90
+
+  # Для Zombie-семейства ванильный шанс оружия на Hard около 5%.
+  zombie-weapon-base-chance: 0.05
+  zombie-weapon-cap: 0.40
+
+  # Drowned вынесен отдельно, чтобы трезубцы не разрушили экономику сервера.
+  drowned-weapon-chance: 0.40
+  drowned-trident-share: 0.50
+
+  # Шанс выпадения экипировки, которую добавил/усилил MobBalance.
+  generated-item-drop-chance: 0.02
+
+  armor-tier-weights:
+    leather: 20
+    gold: 25
+    chainmail: 25
+    iron: 25
+    diamond: 5
+
+  armor-piece-count-weights:
+    one: 20
+    two: 30
+    three: 30
+    four: 20
+
+enchantments:
+  # Зачарования усиливаем слабее экипировки, чтобы каждый моб не был фулл-зачарованным.
+  multiplier: 3.5
+  armor-base-chance: 0.50
+  armor-cap: 0.75
+  weapon-base-chance: 0.25
+  weapon-cap: 0.70
+
+projectiles:
+  skeleton:
+    negative-effect-chance: 0.35
+  stray:
+    negative-effect-chance: 0.35
+
+  effects:
+    slowness:
+      weight: 35
+      duration-ticks: 120
+      amplifier: 0
+    weakness:
+      weight: 30
+      duration-ticks: 160
+      amplifier: 0
+    poison:
+      weight: 25
+      duration-ticks: 100
+      amplifier: 0
+    wither:
+      weight: 10
+      duration-ticks: 60
+      amplifier: 0
