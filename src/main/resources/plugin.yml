@@ -1,0 +1,18 @@
+name: MobBalance
+version: 1.0.0
+main: dev.smpcristalix.mobbalance.MobBalancePlugin
+api-version: '1.21'
+author: QuerlyFF
+description: Усиление ванильных мобов для SMP Cristalix
+
+commands:
+  mobbalance:
+    description: Управление MobBalance
+    usage: /mobbalance <status|reload>
+    aliases: [mb]
+    permission: mobbalance.admin
+
+permissions:
+  mobbalance.admin:
+    description: Административные команды MobBalance
+    default: op
