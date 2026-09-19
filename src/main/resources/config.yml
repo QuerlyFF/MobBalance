@@ -15,7 +15,6 @@ general:
     - SLIME_SPLIT
 
 stats:
-  # Общий случайный бонус для мобов, у которых включён баф HP/урона.
   health-bonus-min-percent: 0.0
   health-bonus-max-percent: 100.0
   damage-bonus-min-percent: 0.0
@@ -25,13 +24,10 @@ equipment:
   multiplier: 8.0
   armor-base-chance: 0.15
   armor-cap: 0.90
-
   zombie-weapon-base-chance: 0.05
   zombie-weapon-cap: 0.40
-
   drowned-weapon-chance: 0.40
   drowned-trident-share: 0.50
-
   generated-item-drop-chance: 0.02
 
   armor-tier-weights:
@@ -57,17 +53,15 @@ enchantments:
 projectiles:
   skeleton:
     negative-effect-chance: 0.35
-
   stray:
-    # Если наш дебафф не прокнул, остаётся ванильное замедление Stray.
     negative-effect-chance: 0.35
-
   bogged:
-    # Боггед получает те же дополнительные дебаффы, что Skeleton/Stray.
     negative-effect-chance: 0.35
-    # Базовый яд Bogged усиливаем: Poison II на 8 секунд гарантированно.
     base-poison-duration-ticks: 160
     base-poison-amplifier: 1
+  raiders:
+    # Pillager и Piglin с арбалетом используют тот же пул дебаффов.
+    negative-effect-chance: 0.35
 
   effects:
     slowness:
@@ -92,7 +86,6 @@ spiders:
     speed-multiplier: 1.20
     poison-duration-ticks: 100
     poison-amplifier: 0
-
   cave-spider:
     speed-multiplier: 1.25
     poison-duration-ticks: 300
@@ -103,20 +96,57 @@ creeper:
   explosion-radius-multiplier: 1.25
   fuse-time-multiplier: 0.80
 
-# Slime использует общий случайный +0–100% HP и +0–100% урона.
 slime:
   enabled: true
 
 witch:
-  # HP получает общий +0–100%. Урон отдельно не увеличиваем.
-  # В 65% случаев через 8 тиков после обычного броска летит ещё одно такое же зелье.
   extra-potion-chance: 0.65
   extra-potion-delay-ticks: 8
 
 enderman:
-  # HP/урон: общий +0–100%. Дополнительно очень сильно ускоряем.
   speed-multiplier: 1.55
 
 phantom:
-  # HP остаётся ванильным. Урон: общий +0–100%.
   speed-multiplier: 1.35
+
+pillager:
+  # Арбалет гарантированно получает Quick Charge III.
+  quick-charge-level: 3
+
+vindicator:
+  # HP получает общий +0–100%, урон не бафается.
+  speed-multiplier: 1.25
+
+evoker:
+  # В среднем только половина бафнутых Evoker оставляет тотем.
+  totem-drop-chance: 0.50
+  # 60% обычных кастов получают дополнительную волну способности.
+  repeat-ability-chance: 0.60
+  repeat-delay-ticks: 20
+  fang-damage-multiplier: 1.50
+  extra-vex-count: 1
+
+breeze:
+  extra-shot-chance: 0.50
+  extra-shot-delay-ticks: 6
+
+blaze:
+  # HP получает общий +0–100%, прямой урон не меняем.
+  extra-shot-chance: 0.50
+  extra-shot-delay-ticks: 6
+
+ghast:
+  # HP не меняем. Усиливаем попадание огненного шара и шанс второго выстрела.
+  damage-multiplier: 1.35
+  extra-shot-chance: 0.40
+  extra-shot-delay-ticks: 10
+
+# Wither Skeleton получает общий +0–100% HP/урона и усиленную броню/меч.
+# Лук ему никогда не выдаётся.
+wither-skeleton:
+  enabled: true
+
+# Обычный Piglin: если появился с арбалетом, получает Quick Charge III и дебафф-стрелы.
+# Piglin Brute не трогаем.
+piglin:
+  crossbow-buff: true

@@ -2,6 +2,7 @@ package dev.smpcristalix.mobbalance;
 
 import dev.smpcristalix.mobbalance.config.MobBalanceSettings;
 import dev.smpcristalix.mobbalance.listener.CreeperTargetListener;
+import dev.smpcristalix.mobbalance.listener.EvokerCombatListener;
 import dev.smpcristalix.mobbalance.listener.MobProjectileListener;
 import dev.smpcristalix.mobbalance.listener.MobSpawnListener;
 import dev.smpcristalix.mobbalance.listener.SpiderAttackListener;
@@ -10,9 +11,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.EntityType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/**
- * Главный класс MobBalance.
- */
+/** Главный класс MobBalance. */
 public final class MobBalancePlugin extends JavaPlugin {
 
     private MobBuffService mobBuffService;
@@ -28,6 +27,7 @@ public final class MobBalancePlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new MobProjectileListener(mobBuffService), this);
         getServer().getPluginManager().registerEvents(new SpiderAttackListener(mobBuffService), this);
         getServer().getPluginManager().registerEvents(new CreeperTargetListener(mobBuffService), this);
+        getServer().getPluginManager().registerEvents(new EvokerCombatListener(mobBuffService), this);
         registerCommand();
 
         getLogger().info("MobBalance включён. Усиления активны для сложности " + settings.difficulty() + ".");
@@ -50,10 +50,10 @@ public final class MobBalancePlugin extends JavaPlugin {
                 sender.sendMessage("§7Зачарование брони: §f" + percent(settings.armorEnchantChance()));
                 sender.sendMessage("§7Зачарование оружия: §f" + percent(settings.weaponEnchantChance()));
                 sender.sendMessage("§7Spider speed: §fx" + settings.spiderSpec(EntityType.SPIDER).speedMultiplier());
-                sender.sendMessage("§7Cave Spider speed: §fx" + settings.spiderSpec(EntityType.CAVE_SPIDER).speedMultiplier());
-                sender.sendMessage("§7Creeper aggro speed: §fx" + settings.creeperSpec().aggroSpeedMultiplier());
-                sender.sendMessage("§7Creeper explosion radius: §fx" + settings.creeperSpec().explosionRadiusMultiplier());
-                sender.sendMessage("§7Creeper fuse time: §fx" + settings.creeperSpec().fuseTimeMultiplier());
+                sender.sendMessage("§7Enderman speed: §fx" + settings.endermanSpeedMultiplier());
+                sender.sendMessage("§7Vindicator speed: §fx" + settings.vindicatorSpeedMultiplier());
+                sender.sendMessage("§7Pillager Quick Charge: §f" + settings.pillagerQuickChargeLevel());
+                sender.sendMessage("§7Evoker totem drop: §f" + percent(settings.evokerSpec().totemDropChance()));
                 return true;
             }
 
