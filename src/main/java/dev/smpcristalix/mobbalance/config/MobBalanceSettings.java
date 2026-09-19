@@ -35,10 +35,16 @@ public final class MobBalanceSettings {
     private final double skeletonNegativeEffectChance;
     private final double strayNegativeEffectChance;
     private final double boggedNegativeEffectChance;
+    private final int boggedPoisonDurationTicks;
+    private final int boggedPoisonAmplifier;
     private final List<PotionEffectSpec> projectileEffects;
     private final SpiderSpec spider;
     private final SpiderSpec caveSpider;
     private final CreeperSpec creeper;
+    private final double witchExtraPotionChance;
+    private final int witchExtraPotionDelayTicks;
+    private final double endermanSpeedMultiplier;
+    private final double phantomSpeedMultiplier;
 
     private MobBalanceSettings(FileConfiguration config) {
         enabled = config.getBoolean("general.enabled", true);
@@ -104,74 +110,38 @@ public final class MobBalanceSettings {
         boggedNegativeEffectChance = probability(
                 config.getDouble("projectiles.bogged.negative-effect-chance", 0.35)
         );
+        boggedPoisonDurationTicks = Math.max(1, config.getInt("projectiles.bogged.base-poison-duration-ticks", 160));
+        boggedPoisonAmplifier = Math.max(0, config.getInt("projectiles.bogged.base-poison-amplifier", 1));
         projectileEffects = Collections.unmodifiableList(readProjectileEffects(config));
 
         spider = readSpiderSpec(config, "spiders.spider", 1.20, 100, 0);
         caveSpider = readSpiderSpec(config, "spiders.cave-spider", 1.25, 300, 1);
         creeper = readCreeperSpec(config);
+
+        witchExtraPotionChance = probability(config.getDouble("witch.extra-potion-chance", 0.65));
+        witchExtraPotionDelayTicks = Math.max(1, config.getInt("witch.extra-potion-delay-ticks", 8));
+        endermanSpeedMultiplier = positiveOrOne(config.getDouble("enderman.speed-multiplier", 1.55));
+        phantomSpeedMultiplier = positiveOrOne(config.getDouble("phantom.speed-multiplier", 1.35));
     }
 
     public static MobBalanceSettings from(FileConfiguration config) {
         return new MobBalanceSettings(config);
     }
 
-    public boolean enabled() {
-        return enabled;
-    }
-
-    public Difficulty difficulty() {
-        return difficulty;
-    }
-
-    public boolean acceptsSpawnReason(String spawnReason) {
-        return spawnReasons.isEmpty() || spawnReasons.contains(spawnReason);
-    }
-
-    public double randomHealthMultiplier(RandomGenerator random) {
-        return healthBonus.randomMultiplier(random);
-    }
-
-    public double randomDamageMultiplier(RandomGenerator random) {
-        return damageBonus.randomMultiplier(random);
-    }
-
-    public double armorChance() {
-        return armorChance;
-    }
-
-    public double zombieWeaponChance() {
-        return zombieWeaponChance;
-    }
-
-    public double drownedWeaponChance() {
-        return drownedWeaponChance;
-    }
-
-    public double drownedTridentShare() {
-        return drownedTridentShare;
-    }
-
-    public float generatedItemDropChance() {
-        return (float) generatedItemDropChance;
-    }
-
-    public double armorEnchantChance() {
-        return armorEnchantChance;
-    }
-
-    public double weaponEnchantChance() {
-        return weaponEnchantChance;
-    }
-
-    /** Порядок: leather, gold, chainmail, iron, diamond. */
-    public int[] armorTierWeights() {
-        return armorTierWeights.clone();
-    }
-
-    /** Порядок: 1, 2, 3, 4 предмета брони. */
-    public int[] armorPieceCountWeights() {
-        return armorPieceCountWeights.clone();
-    }
+    public boolean enabled() { return enabled; }
+    public Difficulty difficulty() { return difficulty; }
+    public boolean acceptsSpawnReason(String spawnReason) { return spawnReasons.isEmpty() || spawnReasons.contains(spawnReason); }
+    public double randomHealthMultiplier(RandomGenerator random) { return healthBonus.randomMultiplier(random); }
+    public double randomDamageMultiplier(RandomGenerator random) { return damageBonus.randomMultiplier(random); }
+    public double armorChance() { return armorChance; }
+    public double zombieWeaponChance() { return zombieWeaponChance; }
+    public double drownedWeaponChance() { return drownedWeaponChance; }
+    public double drownedTridentShare() { return drownedTridentShare; }
+    public float generatedItemDropChance() { return (float) generatedItemDropChance; }
+    public double armorEnchantChance() { return armorEnchantChance; }
+    public double weaponEnchantChance() { return weaponEnchantChance; }
+    public int[] armorTierWeights() { return armorTierWeights.clone(); }
+    public int[] armorPieceCountWeights() { return armorPieceCountWeights.clone(); }
 
     public double negativeEffectChance(EntityType shooterType) {
         return switch (shooterType) {
@@ -181,29 +151,21 @@ public final class MobBalanceSettings {
         };
     }
 
-    public List<PotionEffectSpec> projectileEffects() {
-        return projectileEffects;
-    }
+    public int boggedPoisonDurationTicks() { return boggedPoisonDurationTicks; }
+    public int boggedPoisonAmplifier() { return boggedPoisonAmplifier; }
+    public List<PotionEffectSpec> projectileEffects() { return projectileEffects; }
+    public SpiderSpec spiderSpec(EntityType type) { return type == EntityType.CAVE_SPIDER ? caveSpider : spider; }
+    public CreeperSpec creeperSpec() { return creeper; }
+    public double witchExtraPotionChance() { return witchExtraPotionChance; }
+    public int witchExtraPotionDelayTicks() { return witchExtraPotionDelayTicks; }
+    public double endermanSpeedMultiplier() { return endermanSpeedMultiplier; }
+    public double phantomSpeedMultiplier() { return phantomSpeedMultiplier; }
 
-    public SpiderSpec spiderSpec(EntityType type) {
-        return type == EntityType.CAVE_SPIDER ? caveSpider : spider;
-    }
-
-    public CreeperSpec creeperSpec() {
-        return creeper;
-    }
-
-    private static SpiderSpec readSpiderSpec(
-            FileConfiguration config,
-            String root,
-            double defaultSpeedMultiplier,
-            int defaultPoisonDurationTicks,
-            int defaultPoisonAmplifier
-    ) {
+    private static SpiderSpec readSpiderSpec(FileConfiguration config, String root, double speed, int duration, int amplifier) {
         return new SpiderSpec(
-                Math.max(0.0, config.getDouble(root + ".speed-multiplier", defaultSpeedMultiplier)),
-                Math.max(1, config.getInt(root + ".poison-duration-ticks", defaultPoisonDurationTicks)),
-                Math.max(0, config.getInt(root + ".poison-amplifier", defaultPoisonAmplifier))
+                Math.max(0.0, config.getDouble(root + ".speed-multiplier", speed)),
+                Math.max(1, config.getInt(root + ".poison-duration-ticks", duration)),
+                Math.max(0, config.getInt(root + ".poison-amplifier", amplifier))
         );
     }
 
@@ -224,22 +186,13 @@ public final class MobBalanceSettings {
         return result;
     }
 
-    private static void addEffect(
-            List<PotionEffectSpec> target,
-            FileConfiguration config,
-            String key,
-            PotionEffectType type,
-            int defaultWeight,
-            int defaultDuration,
-            int defaultAmplifier
-    ) {
+    private static void addEffect(List<PotionEffectSpec> target, FileConfiguration config, String key,
+                                  PotionEffectType type, int defaultWeight, int defaultDuration, int defaultAmplifier) {
         String root = "projectiles.effects." + key;
         int weight = weight(config, root + ".weight", defaultWeight);
         int duration = Math.max(1, config.getInt(root + ".duration-ticks", defaultDuration));
         int amplifier = Math.max(0, config.getInt(root + ".amplifier", defaultAmplifier));
-        if (weight > 0) {
-            target.add(new PotionEffectSpec(type, weight, duration, amplifier));
-        }
+        if (weight > 0) target.add(new PotionEffectSpec(type, weight, duration, amplifier));
     }
 
     private static Difficulty parseDifficulty(String raw) {
@@ -254,34 +207,14 @@ public final class MobBalanceSettings {
         return Math.min(probability(cap), probability(base) * positive(multiplier));
     }
 
-    private static double probability(double value) {
-        return Math.max(0.0, Math.min(1.0, value));
-    }
+    private static double probability(double value) { return Math.max(0.0, Math.min(1.0, value)); }
+    private static double positive(double value) { return Math.max(0.0, value); }
+    private static double positiveOrOne(double value) { return value > 0.0 ? value : 1.0; }
+    private static int weight(FileConfiguration config, String path, int fallback) { return Math.max(0, config.getInt(path, fallback)); }
 
-    private static double positive(double value) {
-        return Math.max(0.0, value);
-    }
-
-    private static double positiveOrOne(double value) {
-        return value > 0.0 ? value : 1.0;
-    }
-
-    private static int weight(FileConfiguration config, String path, int fallback) {
-        return Math.max(0, config.getInt(path, fallback));
-    }
-
-    public record PotionEffectSpec(PotionEffectType type, int weight, int durationTicks, int amplifier) {
-    }
-
-    public record SpiderSpec(double speedMultiplier, int poisonDurationTicks, int poisonAmplifier) {
-    }
-
-    public record CreeperSpec(
-            double aggroSpeedMultiplier,
-            double explosionRadiusMultiplier,
-            double fuseTimeMultiplier
-    ) {
-    }
+    public record PotionEffectSpec(PotionEffectType type, int weight, int durationTicks, int amplifier) {}
+    public record SpiderSpec(double speedMultiplier, int poisonDurationTicks, int poisonAmplifier) {}
+    public record CreeperSpec(double aggroSpeedMultiplier, double explosionRadiusMultiplier, double fuseTimeMultiplier) {}
 
     private record PercentRange(double minPercent, double maxPercent) {
         private PercentRange {
