@@ -12,6 +12,7 @@ general:
     - PATROL
     - SPAWNER
     - TRIAL_SPAWNER
+    - SLIME_SPLIT
 
 stats:
   # Общий случайный бонус для мобов, у которых включён баф HP/урона.
