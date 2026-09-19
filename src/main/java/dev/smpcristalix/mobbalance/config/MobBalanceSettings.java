@@ -35,6 +35,8 @@ public final class MobBalanceSettings {
     private final double skeletonNegativeEffectChance;
     private final double strayNegativeEffectChance;
     private final List<PotionEffectSpec> projectileEffects;
+    private final SpiderSpec spider;
+    private final SpiderSpec caveSpider;
 
     private MobBalanceSettings(FileConfiguration config) {
         enabled = config.getBoolean("general.enabled", true);
@@ -98,6 +100,9 @@ public final class MobBalanceSettings {
                 config.getDouble("projectiles.stray.negative-effect-chance", 0.35)
         );
         projectileEffects = Collections.unmodifiableList(readProjectileEffects(config));
+
+        spider = readSpiderSpec(config, "spiders.spider", 1.20, 100, 0);
+        caveSpider = readSpiderSpec(config, "spiders.cave-spider", 1.25, 300, 1);
     }
 
     public static MobBalanceSettings from(FileConfiguration config) {
@@ -170,6 +175,24 @@ public final class MobBalanceSettings {
         return projectileEffects;
     }
 
+    public SpiderSpec spiderSpec(EntityType type) {
+        return type == EntityType.CAVE_SPIDER ? caveSpider : spider;
+    }
+
+    private static SpiderSpec readSpiderSpec(
+            FileConfiguration config,
+            String root,
+            double defaultSpeedMultiplier,
+            int defaultPoisonDurationTicks,
+            int defaultPoisonAmplifier
+    ) {
+        return new SpiderSpec(
+                Math.max(0.0, config.getDouble(root + ".speed-multiplier", defaultSpeedMultiplier)),
+                Math.max(1, config.getInt(root + ".poison-duration-ticks", defaultPoisonDurationTicks)),
+                Math.max(0, config.getInt(root + ".poison-amplifier", defaultPoisonAmplifier))
+        );
+    }
+
     private static List<PotionEffectSpec> readProjectileEffects(FileConfiguration config) {
         List<PotionEffectSpec> result = new ArrayList<>();
         addEffect(result, config, "slowness", PotionEffectType.SLOWNESS, 35, 120, 0);
@@ -222,6 +245,9 @@ public final class MobBalanceSettings {
     }
 
     public record PotionEffectSpec(PotionEffectType type, int weight, int durationTicks, int amplifier) {
+    }
+
+    public record SpiderSpec(double speedMultiplier, int poisonDurationTicks, int poisonAmplifier) {
     }
 
     private record PercentRange(double minPercent, double maxPercent) {

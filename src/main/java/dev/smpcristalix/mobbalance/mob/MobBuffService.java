@@ -12,6 +12,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.projectiles.ProjectileSource;
 
 import java.util.List;
@@ -26,6 +27,17 @@ import java.util.random.RandomGenerator;
 public final class MobBuffService {
 
     private static final Set<EntityType> SUPPORTED_TYPES = Set.of(
+            EntityType.ZOMBIE,
+            EntityType.ZOMBIE_VILLAGER,
+            EntityType.HUSK,
+            EntityType.DROWNED,
+            EntityType.SKELETON,
+            EntityType.STRAY,
+            EntityType.SPIDER,
+            EntityType.CAVE_SPIDER
+    );
+
+    private static final Set<EntityType> EQUIPMENT_TYPES = Set.of(
             EntityType.ZOMBIE,
             EntityType.ZOMBIE_VILLAGER,
             EntityType.HUSK,
@@ -65,7 +77,12 @@ public final class MobBuffService {
 
         RandomGenerator random = ThreadLocalRandom.current();
         applyStats(entity, current, random);
-        equipmentBuffService.apply(entity, current, random);
+        if (isSpider(entity.getType())) {
+            applySpiderSpeed(entity, current);
+        }
+        if (EQUIPMENT_TYPES.contains(entity.getType())) {
+            equipmentBuffService.apply(entity, current, random);
+        }
         pdc.set(buffedKey, PersistentDataType.BYTE, (byte) 1);
         return true;
     }
@@ -88,6 +105,25 @@ public final class MobBuffService {
         }
     }
 
+    /**
+     * Обычный паук всегда накладывает Poison I, пещерный — усиленный Poison II.
+     * Эффект получают только удары пауков, уже обработанных MobBalance.
+     */
+    public void applySpiderPoison(LivingEntity attacker, LivingEntity victim) {
+        if (!isSpider(attacker.getType())) return;
+        if (!attacker.getPersistentDataContainer().has(buffedKey, PersistentDataType.BYTE)) return;
+
+        MobBalanceSettings.SpiderSpec spec = settings.spiderSpec(attacker.getType());
+        victim.addPotionEffect(new PotionEffect(
+                PotionEffectType.POISON,
+                spec.poisonDurationTicks(),
+                spec.poisonAmplifier(),
+                false,
+                true,
+                true
+        ));
+    }
+
     private void applyStats(LivingEntity entity, MobBalanceSettings settings, RandomGenerator random) {
         double healthMultiplier = settings.randomHealthMultiplier(random);
         AttributeInstance maxHealth = entity.getAttribute(Attribute.GENERIC_MAX_HEALTH);
@@ -106,6 +142,18 @@ public final class MobBuffService {
                 PersistentDataType.DOUBLE,
                 damageMultiplier
         );
+    }
+
+    private void applySpiderSpeed(LivingEntity entity, MobBalanceSettings settings) {
+        AttributeInstance movementSpeed = entity.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
+        if (movementSpeed == null) return;
+
+        MobBalanceSettings.SpiderSpec spec = settings.spiderSpec(entity.getType());
+        movementSpeed.setBaseValue(movementSpeed.getBaseValue() * spec.speedMultiplier());
+    }
+
+    private boolean isSpider(EntityType type) {
+        return type == EntityType.SPIDER || type == EntityType.CAVE_SPIDER;
     }
 
     private void applyNegativeEffect(
