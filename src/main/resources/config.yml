@@ -83,3 +83,16 @@ projectiles:
       weight: 10
       duration-ticks: 60
       amplifier: 0
+
+spiders:
+  # Обычный паук: +20% скорости и Poison I на 5 секунд с каждого успешного укуса.
+  spider:
+    speed-multiplier: 1.20
+    poison-duration-ticks: 100
+    poison-amplifier: 0
+
+  # Пещерный паук опаснее: +25% скорости и Poison II на 15 секунд.
+  cave-spider:
+    speed-multiplier: 1.25
+    poison-duration-ticks: 300
+    poison-amplifier: 1
