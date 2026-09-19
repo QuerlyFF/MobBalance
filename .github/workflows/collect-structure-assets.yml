@@ -1,0 +1,70 @@
+name: Collect Structure Assets
+
+on:
+  push:
+    branches:
+      - feature/structure-assets-import
+    paths:
+      - '.github/workflows/collect-structure-assets.yml'
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout workspace
+        uses: actions/checkout@v4
+
+      - name: Checkout Thun's Structures (MIT)
+        uses: actions/checkout@v4
+        with:
+          repository: Thun-bit/thunstructures
+          ref: main
+          path: vendor/thunstructures
+
+      - name: Build curated structure bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p bundle/structures bundle/source
+
+          cp vendor/thunstructures/LICENSE bundle/LICENSE-THUNSTRUCTURES
+          cp vendor/thunstructures/pack.mcmeta bundle/source/pack.mcmeta
+
+          for name in campsite castle graveyard lighthouse observatory ship windmill ice_castle; do
+            cp "vendor/thunstructures/data/thunstructures/structure/${name}.nbt" "bundle/structures/${name}.nbt"
+          done
+
+          cp -R vendor/thunstructures/data/thunstructures/worldgen bundle/source/worldgen
+          cp -R vendor/thunstructures/data/thunstructures/loot_table bundle/source/loot_table
+
+          cat > bundle/README.txt <<'EOF'
+          Curated structure source bundle for WorldStructures.
+
+          Source: Thun-bit/thunstructures
+          Project: Thun's Structures
+          License: MIT (included as LICENSE-THUNSTRUCTURES)
+
+          Selected templates:
+          - campsite.nbt
+          - castle.nbt
+          - graveyard.nbt
+          - lighthouse.nbt
+          - observatory.nbt
+          - ship.nbt
+          - windmill.nbt
+          - ice_castle.nbt
+
+          These files are being collected as source assets for adaptation.
+          Keep attribution/license when redistributing derived project assets as required by MIT.
+          EOF
+
+          cd bundle
+          zip -r ../WorldStructures-source-assets.zip .
+
+      - name: Upload curated bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: WorldStructures-source-assets
+          path: WorldStructures-source-assets.zip
+          if-no-files-found: error
+          retention-days: 30
