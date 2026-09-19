@@ -3,6 +3,7 @@ package dev.smpcristalix.mobbalance;
 import dev.smpcristalix.mobbalance.config.MobBalanceSettings;
 import dev.smpcristalix.mobbalance.listener.MobProjectileListener;
 import dev.smpcristalix.mobbalance.listener.MobSpawnListener;
+import dev.smpcristalix.mobbalance.listener.SpiderAttackListener;
 import dev.smpcristalix.mobbalance.mob.MobBuffService;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -23,6 +24,7 @@ public final class MobBalancePlugin extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(new MobSpawnListener(mobBuffService), this);
         getServer().getPluginManager().registerEvents(new MobProjectileListener(mobBuffService), this);
+        getServer().getPluginManager().registerEvents(new SpiderAttackListener(mobBuffService), this);
         registerCommand();
 
         getLogger().info("MobBalance включён. Усиления активны для сложности " + settings.difficulty() + ".");
@@ -44,6 +46,8 @@ public final class MobBalancePlugin extends JavaPlugin {
                 sender.sendMessage("§7Оружие зомби: §f" + percent(settings.zombieWeaponChance()));
                 sender.sendMessage("§7Зачарование брони: §f" + percent(settings.armorEnchantChance()));
                 sender.sendMessage("§7Зачарование оружия: §f" + percent(settings.weaponEnchantChance()));
+                sender.sendMessage("§7Spider speed: §fx" + settings.spiderSpec(org.bukkit.entity.EntityType.SPIDER).speedMultiplier());
+                sender.sendMessage("§7Cave Spider speed: §fx" + settings.spiderSpec(org.bukkit.entity.EntityType.CAVE_SPIDER).speedMultiplier());
                 return true;
             }
 
