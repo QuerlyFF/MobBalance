@@ -37,6 +37,7 @@ public final class MobBalanceSettings {
     private final List<PotionEffectSpec> projectileEffects;
     private final SpiderSpec spider;
     private final SpiderSpec caveSpider;
+    private final CreeperSpec creeper;
 
     private MobBalanceSettings(FileConfiguration config) {
         enabled = config.getBoolean("general.enabled", true);
@@ -103,6 +104,7 @@ public final class MobBalanceSettings {
 
         spider = readSpiderSpec(config, "spiders.spider", 1.20, 100, 0);
         caveSpider = readSpiderSpec(config, "spiders.cave-spider", 1.25, 300, 1);
+        creeper = readCreeperSpec(config);
     }
 
     public static MobBalanceSettings from(FileConfiguration config) {
@@ -179,6 +181,10 @@ public final class MobBalanceSettings {
         return type == EntityType.CAVE_SPIDER ? caveSpider : spider;
     }
 
+    public CreeperSpec creeperSpec() {
+        return creeper;
+    }
+
     private static SpiderSpec readSpiderSpec(
             FileConfiguration config,
             String root,
@@ -190,6 +196,14 @@ public final class MobBalanceSettings {
                 Math.max(0.0, config.getDouble(root + ".speed-multiplier", defaultSpeedMultiplier)),
                 Math.max(1, config.getInt(root + ".poison-duration-ticks", defaultPoisonDurationTicks)),
                 Math.max(0, config.getInt(root + ".poison-amplifier", defaultPoisonAmplifier))
+        );
+    }
+
+    private static CreeperSpec readCreeperSpec(FileConfiguration config) {
+        return new CreeperSpec(
+                positiveOrOne(config.getDouble("creeper.aggro-speed-multiplier", 1.15)),
+                positiveOrOne(config.getDouble("creeper.explosion-radius-multiplier", 1.25)),
+                positiveOrOne(config.getDouble("creeper.fuse-time-multiplier", 0.80))
         );
     }
 
@@ -240,6 +254,10 @@ public final class MobBalanceSettings {
         return Math.max(0.0, value);
     }
 
+    private static double positiveOrOne(double value) {
+        return value > 0.0 ? value : 1.0;
+    }
+
     private static int weight(FileConfiguration config, String path, int fallback) {
         return Math.max(0, config.getInt(path, fallback));
     }
@@ -248,6 +266,13 @@ public final class MobBalanceSettings {
     }
 
     public record SpiderSpec(double speedMultiplier, int poisonDurationTicks, int poisonAmplifier) {
+    }
+
+    public record CreeperSpec(
+            double aggroSpeedMultiplier,
+            double explosionRadiusMultiplier,
+            double fuseTimeMultiplier
+    ) {
     }
 
     private record PercentRange(double minPercent, double maxPercent) {

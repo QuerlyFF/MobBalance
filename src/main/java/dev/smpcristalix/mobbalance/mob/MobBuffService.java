@@ -6,6 +6,7 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Creeper;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -34,7 +35,8 @@ public final class MobBuffService {
             EntityType.SKELETON,
             EntityType.STRAY,
             EntityType.SPIDER,
-            EntityType.CAVE_SPIDER
+            EntityType.CAVE_SPIDER,
+            EntityType.CREEPER
     );
 
     private static final Set<EntityType> EQUIPMENT_TYPES = Set.of(
@@ -48,12 +50,16 @@ public final class MobBuffService {
 
     private final NamespacedKey buffedKey;
     private final NamespacedKey damageMultiplierKey;
+    private final NamespacedKey creeperBaseSpeedKey;
+    private final NamespacedKey creeperSpeedBoostedKey;
     private final EquipmentBuffService equipmentBuffService = new EquipmentBuffService();
     private volatile MobBalanceSettings settings;
 
     public MobBuffService(Plugin plugin, MobBalanceSettings settings) {
         this.buffedKey = new NamespacedKey(plugin, "buffed");
         this.damageMultiplierKey = new NamespacedKey(plugin, "damage_multiplier");
+        this.creeperBaseSpeedKey = new NamespacedKey(plugin, "creeper_base_speed");
+        this.creeperSpeedBoostedKey = new NamespacedKey(plugin, "creeper_speed_boosted");
         this.settings = settings;
     }
 
@@ -79,6 +85,9 @@ public final class MobBuffService {
         applyStats(entity, current, random);
         if (isSpider(entity.getType())) {
             applySpiderSpeed(entity, current);
+        }
+        if (entity instanceof Creeper creeper) {
+            applyCreeperBaseBuffs(creeper, current);
         }
         if (EQUIPMENT_TYPES.contains(entity.getType())) {
             equipmentBuffService.apply(entity, current, random);
@@ -124,6 +133,36 @@ public final class MobBuffService {
         ));
     }
 
+    /**
+     * Creeper ускоряется только пока у него есть цель. При потере цели скорость возвращается.
+     */
+    public void setCreeperAggro(Creeper creeper, boolean aggressive) {
+        PersistentDataContainer pdc = creeper.getPersistentDataContainer();
+        if (!pdc.has(buffedKey, PersistentDataType.BYTE)) return;
+
+        AttributeInstance movementSpeed = creeper.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
+        if (movementSpeed == null) return;
+
+        boolean boosted = pdc.has(creeperSpeedBoostedKey, PersistentDataType.BYTE);
+        if (aggressive) {
+            if (boosted) return;
+
+            double baseSpeed = movementSpeed.getBaseValue();
+            pdc.set(creeperBaseSpeedKey, PersistentDataType.DOUBLE, baseSpeed);
+            movementSpeed.setBaseValue(baseSpeed * settings.creeperSpec().aggroSpeedMultiplier());
+            pdc.set(creeperSpeedBoostedKey, PersistentDataType.BYTE, (byte) 1);
+            return;
+        }
+
+        if (!boosted) return;
+        Double baseSpeed = pdc.get(creeperBaseSpeedKey, PersistentDataType.DOUBLE);
+        if (baseSpeed != null) {
+            movementSpeed.setBaseValue(baseSpeed);
+        }
+        pdc.remove(creeperBaseSpeedKey);
+        pdc.remove(creeperSpeedBoostedKey);
+    }
+
     private void applyStats(LivingEntity entity, MobBalanceSettings settings, RandomGenerator random) {
         double healthMultiplier = settings.randomHealthMultiplier(random);
         AttributeInstance maxHealth = entity.getAttribute(Attribute.GENERIC_MAX_HEALTH);
@@ -150,6 +189,16 @@ public final class MobBuffService {
 
         MobBalanceSettings.SpiderSpec spec = settings.spiderSpec(entity.getType());
         movementSpeed.setBaseValue(movementSpeed.getBaseValue() * spec.speedMultiplier());
+    }
+
+    private void applyCreeperBaseBuffs(Creeper creeper, MobBalanceSettings settings) {
+        MobBalanceSettings.CreeperSpec spec = settings.creeperSpec();
+
+        int buffedRadius = Math.max(1, (int) Math.round(creeper.getExplosionRadius() * spec.explosionRadiusMultiplier()));
+        creeper.setExplosionRadius(buffedRadius);
+
+        int buffedFuse = Math.max(1, (int) Math.round(creeper.getMaxFuseTicks() * spec.fuseTimeMultiplier()));
+        creeper.setMaxFuseTicks(buffedFuse);
     }
 
     private boolean isSpider(EntityType type) {

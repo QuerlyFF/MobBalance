@@ -96,3 +96,14 @@ spiders:
     speed-multiplier: 1.25
     poison-duration-ticks: 300
     poison-amplifier: 1
+
+creeper:
+  # Ускорение включается только когда Creeper реально преследует цель.
+  aggro-speed-multiplier: 1.15
+
+  # Радиус взрыва увеличивается примерно на 25%.
+  # Из-за целочисленного радиуса ванильные 3 блока превращаются в 4.
+  explosion-radius-multiplier: 1.25
+
+  # Ванильный фитиль 30 тиков становится примерно 24 тика.
+  fuse-time-multiplier: 0.80
