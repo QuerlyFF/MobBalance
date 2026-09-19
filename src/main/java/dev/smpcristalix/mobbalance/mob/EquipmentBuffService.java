@@ -29,7 +29,7 @@ public final class EquipmentBuffService {
             applyDrownedWeapon(equipment, settings, random);
         } else if (isZombieFamily(type)) {
             applyZombieWeapon(equipment, settings, random);
-        } else if (type == EntityType.SKELETON || type == EntityType.STRAY) {
+        } else if (isSkeletonFamily(type)) {
             ensureBow(equipment, settings);
         }
 
@@ -94,23 +94,14 @@ public final class EquipmentBuffService {
         enchantArmorPiece(equipment, 3, settings, random);
     }
 
-    private void enchantArmorPiece(
-            EntityEquipment equipment,
-            int slot,
-            MobBalanceSettings settings,
-            RandomGenerator random
-    ) {
+    private void enchantArmorPiece(EntityEquipment equipment, int slot, MobBalanceSettings settings, RandomGenerator random) {
         ItemStack item = getArmor(equipment, slot);
         if (item == null || item.getType().isAir()) return;
         if (random.nextDouble() >= settings.armorEnchantChance()) return;
 
         addAtLeast(item, Enchantment.PROTECTION, random.nextInt(1, 4));
-        if (random.nextDouble() < 0.20) {
-            addAtLeast(item, Enchantment.UNBREAKING, random.nextInt(1, 4));
-        }
-        if (random.nextDouble() < 0.10) {
-            addAtLeast(item, Enchantment.THORNS, 1);
-        }
+        if (random.nextDouble() < 0.20) addAtLeast(item, Enchantment.UNBREAKING, random.nextInt(1, 4));
+        if (random.nextDouble() < 0.10) addAtLeast(item, Enchantment.THORNS, 1);
         setArmorDropChance(equipment, slot, settings.generatedItemDropChance());
     }
 
@@ -141,15 +132,15 @@ public final class EquipmentBuffService {
 
     private void addAtLeast(ItemStack item, Enchantment enchantment, int level) {
         int current = item.getEnchantmentLevel(enchantment);
-        if (level > current) {
-            item.addUnsafeEnchantment(enchantment, level);
-        }
+        if (level > current) item.addUnsafeEnchantment(enchantment, level);
     }
 
     private boolean isZombieFamily(EntityType type) {
-        return type == EntityType.ZOMBIE
-                || type == EntityType.ZOMBIE_VILLAGER
-                || type == EntityType.HUSK;
+        return type == EntityType.ZOMBIE || type == EntityType.ZOMBIE_VILLAGER || type == EntityType.HUSK;
+    }
+
+    private boolean isSkeletonFamily(EntityType type) {
+        return type == EntityType.SKELETON || type == EntityType.STRAY || type == EntityType.BOGGED;
     }
 
     private int weightedIndex(int[] weights, RandomGenerator random) {
@@ -215,11 +206,7 @@ public final class EquipmentBuffService {
     }
 
     private enum ArmorTier {
-        LEATHER,
-        GOLD,
-        CHAINMAIL,
-        IRON,
-        DIAMOND;
+        LEATHER, GOLD, CHAINMAIL, IRON, DIAMOND;
 
         private Material material(int slot) {
             return switch (this) {

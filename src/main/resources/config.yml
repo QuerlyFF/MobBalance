@@ -4,7 +4,6 @@
 general:
   enabled: true
   difficulty: HARD
-  # Причины спавна, к которым применяются усиления.
   spawn-reasons:
     - NATURAL
     - CHUNK_GEN
@@ -13,30 +12,26 @@ general:
     - PATROL
     - SPAWNER
     - TRIAL_SPAWNER
+    - SLIME_SPLIT
 
 stats:
-  # Случайный бонус определяется один раз при появлении моба.
+  # Общий случайный бонус для мобов, у которых включён баф HP/урона.
   health-bonus-min-percent: 0.0
   health-bonus-max-percent: 100.0
   damage-bonus-min-percent: 0.0
   damage-bonus-max-percent: 100.0
 
 equipment:
-  # На Hard берём ванильный максимальный шанс брони ~15% и усиливаем x8,
-  # но не даём ему уйти выше установленного cap.
   multiplier: 8.0
   armor-base-chance: 0.15
   armor-cap: 0.90
 
-  # Для Zombie-семейства ванильный шанс оружия на Hard около 5%.
   zombie-weapon-base-chance: 0.05
   zombie-weapon-cap: 0.40
 
-  # Drowned вынесен отдельно, чтобы трезубцы не разрушили экономику сервера.
   drowned-weapon-chance: 0.40
   drowned-trident-share: 0.50
 
-  # Шанс выпадения экипировки, которую добавил/усилил MobBalance.
   generated-item-drop-chance: 0.02
 
   armor-tier-weights:
@@ -53,7 +48,6 @@ equipment:
     four: 20
 
 enchantments:
-  # Зачарования усиливаем слабее экипировки, чтобы каждый моб не был фулл-зачарованным.
   multiplier: 3.5
   armor-base-chance: 0.50
   armor-cap: 0.75
@@ -63,8 +57,17 @@ enchantments:
 projectiles:
   skeleton:
     negative-effect-chance: 0.35
+
   stray:
+    # Если наш дебафф не прокнул, остаётся ванильное замедление Stray.
     negative-effect-chance: 0.35
+
+  bogged:
+    # Боггед получает те же дополнительные дебаффы, что Skeleton/Stray.
+    negative-effect-chance: 0.35
+    # Базовый яд Bogged усиливаем: Poison II на 8 секунд гарантированно.
+    base-poison-duration-ticks: 160
+    base-poison-amplifier: 1
 
   effects:
     slowness:
@@ -85,25 +88,35 @@ projectiles:
       amplifier: 0
 
 spiders:
-  # Обычный паук: +20% скорости и Poison I на 5 секунд с каждого успешного укуса.
   spider:
     speed-multiplier: 1.20
     poison-duration-ticks: 100
     poison-amplifier: 0
 
-  # Пещерный паук опаснее: +25% скорости и Poison II на 15 секунд.
   cave-spider:
     speed-multiplier: 1.25
     poison-duration-ticks: 300
     poison-amplifier: 1
 
 creeper:
-  # Ускорение включается только когда Creeper реально преследует цель.
   aggro-speed-multiplier: 1.15
-
-  # Радиус взрыва увеличивается примерно на 25%.
-  # Из-за целочисленного радиуса ванильные 3 блока превращаются в 4.
   explosion-radius-multiplier: 1.25
-
-  # Ванильный фитиль 30 тиков становится примерно 24 тика.
   fuse-time-multiplier: 0.80
+
+# Slime использует общий случайный +0–100% HP и +0–100% урона.
+slime:
+  enabled: true
+
+witch:
+  # HP получает общий +0–100%. Урон отдельно не увеличиваем.
+  # В 65% случаев через 8 тиков после обычного броска летит ещё одно такое же зелье.
+  extra-potion-chance: 0.65
+  extra-potion-delay-ticks: 8
+
+enderman:
+  # HP/урон: общий +0–100%. Дополнительно очень сильно ускоряем.
+  speed-multiplier: 1.55
+
+phantom:
+  # HP остаётся ванильным. Урон: общий +0–100%.
+  speed-multiplier: 1.35
