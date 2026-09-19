@@ -34,6 +34,7 @@ public final class MobBalanceSettings {
     private final int[] armorPieceCountWeights;
     private final double skeletonNegativeEffectChance;
     private final double strayNegativeEffectChance;
+    private final double boggedNegativeEffectChance;
     private final List<PotionEffectSpec> projectileEffects;
     private final SpiderSpec spider;
     private final SpiderSpec caveSpider;
@@ -99,6 +100,9 @@ public final class MobBalanceSettings {
         );
         strayNegativeEffectChance = probability(
                 config.getDouble("projectiles.stray.negative-effect-chance", 0.35)
+        );
+        boggedNegativeEffectChance = probability(
+                config.getDouble("projectiles.bogged.negative-effect-chance", 0.35)
         );
         projectileEffects = Collections.unmodifiableList(readProjectileEffects(config));
 
@@ -170,7 +174,11 @@ public final class MobBalanceSettings {
     }
 
     public double negativeEffectChance(EntityType shooterType) {
-        return shooterType == EntityType.STRAY ? strayNegativeEffectChance : skeletonNegativeEffectChance;
+        return switch (shooterType) {
+            case STRAY -> strayNegativeEffectChance;
+            case BOGGED -> boggedNegativeEffectChance;
+            default -> skeletonNegativeEffectChance;
+        };
     }
 
     public List<PotionEffectSpec> projectileEffects() {
