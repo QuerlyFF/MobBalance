@@ -35,6 +35,7 @@ public final class MobBalanceSettings {
     private final double skeletonNegativeEffectChance;
     private final double strayNegativeEffectChance;
     private final double boggedNegativeEffectChance;
+    private final double raiderNegativeEffectChance;
     private final int boggedPoisonDurationTicks;
     private final int boggedPoisonAmplifier;
     private final List<PotionEffectSpec> projectileEffects;
@@ -45,6 +46,12 @@ public final class MobBalanceSettings {
     private final int witchExtraPotionDelayTicks;
     private final double endermanSpeedMultiplier;
     private final double phantomSpeedMultiplier;
+    private final int pillagerQuickChargeLevel;
+    private final double vindicatorSpeedMultiplier;
+    private final EvokerSpec evoker;
+    private final RangedRateSpec breeze;
+    private final RangedRateSpec blaze;
+    private final GhastSpec ghast;
 
     private MobBalanceSettings(FileConfiguration config) {
         enabled = config.getBoolean("general.enabled", true);
@@ -101,15 +108,10 @@ public final class MobBalanceSettings {
                 config.getDouble("enchantments.weapon-cap", 0.70)
         );
 
-        skeletonNegativeEffectChance = probability(
-                config.getDouble("projectiles.skeleton.negative-effect-chance", 0.35)
-        );
-        strayNegativeEffectChance = probability(
-                config.getDouble("projectiles.stray.negative-effect-chance", 0.35)
-        );
-        boggedNegativeEffectChance = probability(
-                config.getDouble("projectiles.bogged.negative-effect-chance", 0.35)
-        );
+        skeletonNegativeEffectChance = probability(config.getDouble("projectiles.skeleton.negative-effect-chance", 0.35));
+        strayNegativeEffectChance = probability(config.getDouble("projectiles.stray.negative-effect-chance", 0.35));
+        boggedNegativeEffectChance = probability(config.getDouble("projectiles.bogged.negative-effect-chance", 0.35));
+        raiderNegativeEffectChance = probability(config.getDouble("projectiles.raiders.negative-effect-chance", 0.35));
         boggedPoisonDurationTicks = Math.max(1, config.getInt("projectiles.bogged.base-poison-duration-ticks", 160));
         boggedPoisonAmplifier = Math.max(0, config.getInt("projectiles.bogged.base-poison-amplifier", 1));
         projectileEffects = Collections.unmodifiableList(readProjectileEffects(config));
@@ -122,11 +124,26 @@ public final class MobBalanceSettings {
         witchExtraPotionDelayTicks = Math.max(1, config.getInt("witch.extra-potion-delay-ticks", 8));
         endermanSpeedMultiplier = positiveOrOne(config.getDouble("enderman.speed-multiplier", 1.55));
         phantomSpeedMultiplier = positiveOrOne(config.getDouble("phantom.speed-multiplier", 1.35));
+
+        pillagerQuickChargeLevel = Math.max(1, config.getInt("pillager.quick-charge-level", 3));
+        vindicatorSpeedMultiplier = positiveOrOne(config.getDouble("vindicator.speed-multiplier", 1.25));
+        evoker = new EvokerSpec(
+                probability(config.getDouble("evoker.totem-drop-chance", 0.50)),
+                probability(config.getDouble("evoker.repeat-ability-chance", 0.60)),
+                Math.max(1, config.getInt("evoker.repeat-delay-ticks", 20)),
+                positiveOrOne(config.getDouble("evoker.fang-damage-multiplier", 1.50)),
+                Math.max(0, config.getInt("evoker.extra-vex-count", 1))
+        );
+        breeze = readRateSpec(config, "breeze", 0.50, 6);
+        blaze = readRateSpec(config, "blaze", 0.50, 6);
+        ghast = new GhastSpec(
+                probability(config.getDouble("ghast.extra-shot-chance", 0.40)),
+                Math.max(1, config.getInt("ghast.extra-shot-delay-ticks", 10)),
+                positiveOrOne(config.getDouble("ghast.damage-multiplier", 1.35))
+        );
     }
 
-    public static MobBalanceSettings from(FileConfiguration config) {
-        return new MobBalanceSettings(config);
-    }
+    public static MobBalanceSettings from(FileConfiguration config) { return new MobBalanceSettings(config); }
 
     public boolean enabled() { return enabled; }
     public Difficulty difficulty() { return difficulty; }
@@ -147,6 +164,7 @@ public final class MobBalanceSettings {
         return switch (shooterType) {
             case STRAY -> strayNegativeEffectChance;
             case BOGGED -> boggedNegativeEffectChance;
+            case PILLAGER, PIGLIN -> raiderNegativeEffectChance;
             default -> skeletonNegativeEffectChance;
         };
     }
@@ -160,6 +178,12 @@ public final class MobBalanceSettings {
     public int witchExtraPotionDelayTicks() { return witchExtraPotionDelayTicks; }
     public double endermanSpeedMultiplier() { return endermanSpeedMultiplier; }
     public double phantomSpeedMultiplier() { return phantomSpeedMultiplier; }
+    public int pillagerQuickChargeLevel() { return pillagerQuickChargeLevel; }
+    public double vindicatorSpeedMultiplier() { return vindicatorSpeedMultiplier; }
+    public EvokerSpec evokerSpec() { return evoker; }
+    public RangedRateSpec breezeSpec() { return breeze; }
+    public RangedRateSpec blazeSpec() { return blaze; }
+    public GhastSpec ghastSpec() { return ghast; }
 
     private static SpiderSpec readSpiderSpec(FileConfiguration config, String root, double speed, int duration, int amplifier) {
         return new SpiderSpec(
@@ -174,6 +198,13 @@ public final class MobBalanceSettings {
                 positiveOrOne(config.getDouble("creeper.aggro-speed-multiplier", 1.15)),
                 positiveOrOne(config.getDouble("creeper.explosion-radius-multiplier", 1.25)),
                 positiveOrOne(config.getDouble("creeper.fuse-time-multiplier", 0.80))
+        );
+    }
+
+    private static RangedRateSpec readRateSpec(FileConfiguration config, String root, double chance, int delay) {
+        return new RangedRateSpec(
+                probability(config.getDouble(root + ".extra-shot-chance", chance)),
+                Math.max(1, config.getInt(root + ".extra-shot-delay-ticks", delay))
         );
     }
 
@@ -215,6 +246,10 @@ public final class MobBalanceSettings {
     public record PotionEffectSpec(PotionEffectType type, int weight, int durationTicks, int amplifier) {}
     public record SpiderSpec(double speedMultiplier, int poisonDurationTicks, int poisonAmplifier) {}
     public record CreeperSpec(double aggroSpeedMultiplier, double explosionRadiusMultiplier, double fuseTimeMultiplier) {}
+    public record EvokerSpec(double totemDropChance, double repeatAbilityChance, int repeatDelayTicks,
+                             double fangDamageMultiplier, int extraVexCount) {}
+    public record RangedRateSpec(double extraShotChance, int extraShotDelayTicks) {}
+    public record GhastSpec(double extraShotChance, int extraShotDelayTicks, double damageMultiplier) {}
 
     private record PercentRange(double minPercent, double maxPercent) {
         private PercentRange {
