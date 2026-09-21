@@ -8,8 +8,10 @@ import dev.smpcristalix.mobbalance.listener.MobSpawnListener;
 import dev.smpcristalix.mobbalance.listener.SpiderAttackListener;
 import dev.smpcristalix.mobbalance.mob.MobBuffService;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.entity.EntityType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.Bukkit;
 
 /** Главный класс MobBalance. */
 public final class MobBalancePlugin extends JavaPlugin {
@@ -20,7 +22,14 @@ public final class MobBalancePlugin extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
 
-        MobBalanceSettings settings = MobBalanceSettings.from(getConfig());
+        MobBalanceSettings settings;
+        try {
+            settings = MobBalanceSettings.from(getConfig());
+        } catch (IllegalArgumentException exception) {
+            getLogger().severe("Ошибка config.yml: " + exception.getMessage());
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
         mobBuffService = new MobBuffService(this, settings);
 
         getServer().getPluginManager().registerEvents(new MobSpawnListener(mobBuffService), this);
@@ -41,6 +50,10 @@ public final class MobBalancePlugin extends JavaPlugin {
         }
 
         command.setExecutor((sender, ignoredCommand, ignoredLabel, args) -> {
+            if (!sender.hasPermission("mobbalance.admin")) {
+                sender.sendMessage("§cНет прав.");
+                return true;
+            }
             if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
                 MobBalanceSettings settings = mobBuffService.settings();
                 sender.sendMessage("§6MobBalance §7— §f" + (settings.enabled() ? "включён" : "выключен"));
@@ -58,8 +71,16 @@ public final class MobBalancePlugin extends JavaPlugin {
             }
 
             if (args[0].equalsIgnoreCase("reload")) {
+                String previousConfig = getConfig().saveToString();
                 reloadConfig();
-                MobBalanceSettings settings = MobBalanceSettings.from(getConfig());
+                MobBalanceSettings settings;
+                try {
+                    settings = MobBalanceSettings.from(getConfig());
+                } catch (IllegalArgumentException exception) {
+                    restoreConfig(previousConfig);
+                    sender.sendMessage("§cКонфиг не применён: " + exception.getMessage());
+                    return true;
+                }
                 mobBuffService.reload(settings);
                 sender.sendMessage("§aMobBalance перезагружен.");
                 return true;
@@ -68,6 +89,14 @@ public final class MobBalancePlugin extends JavaPlugin {
             sender.sendMessage("§cИспользование: /mobbalance <status|reload>");
             return true;
         });
+    }
+
+    private void restoreConfig(String serialized) {
+        try {
+            getConfig().loadFromString(serialized);
+        } catch (InvalidConfigurationException impossible) {
+            throw new IllegalStateException("Could not restore previously valid config", impossible);
+        }
     }
 
     private String percent(double chance) {

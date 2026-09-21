@@ -138,10 +138,10 @@ public final class EquipmentBuffService {
     }
 
     private int weightedIndex(int[] weights, RandomGenerator random) {
-        int total = 0;
+        long total = 0;
         for (int weight : weights) total += Math.max(0, weight);
         if (total <= 0) return 0;
-        int roll = random.nextInt(total);
+        long roll = random.nextLong(total);
         for (int i = 0; i < weights.length; i++) {
             roll -= Math.max(0, weights[i]);
             if (roll < 0) return i;

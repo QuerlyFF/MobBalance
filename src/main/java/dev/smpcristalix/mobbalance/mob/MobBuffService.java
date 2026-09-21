@@ -116,6 +116,11 @@ public final class MobBuffService {
         if (!SUPPORTED_TYPES.contains(entity.getType())) return false;
         if (!current.acceptsSpawnReason(spawnReason)) return false;
 
+        EntityType configuredType = entity.getType();
+        if (configuredType == EntityType.SLIME && !current.slimeEnabled()) return false;
+        if (configuredType == EntityType.WITHER_SKELETON && !current.witherSkeletonEnabled()) return false;
+        if (configuredType == EntityType.PIGLIN && !current.piglinCrossbowBuff()) return false;
+
         PersistentDataContainer pdc = entity.getPersistentDataContainer();
         if (pdc.has(buffedKey, PersistentDataType.BYTE)) return false;
 
@@ -241,6 +246,11 @@ public final class MobBuffService {
         drops.removeIf(item -> item.getType() == Material.TOTEM_OF_UNDYING);
     }
 
+    public boolean shouldApplyGlobalRules(LivingEntity entity) {
+        MobBalanceSettings current = settings;
+        return current.enabled() && entity.getWorld().getDifficulty() == current.difficulty();
+    }
+
     public double specialDamageMultiplier(Entity damager) {
         if (damager instanceof EvokerFangs fangs && fangs.getOwner() instanceof Evoker evoker && isBuffed(evoker)) {
             return settings.evokerSpec().fangDamageMultiplier();
@@ -303,7 +313,9 @@ public final class MobBuffService {
         LivingEntity target = evoker.getTarget();
         if (target == null) return;
         Location start = evoker.getLocation();
-        Vector direction = target.getLocation().toVector().subtract(start.toVector()).setY(0).normalize();
+        Vector direction = target.getLocation().toVector().subtract(start.toVector()).setY(0);
+        if (direction.lengthSquared() < 1.0E-8) return;
+        direction.normalize();
         double y = target.getLocation().getY();
 
         for (int i = 1; i <= 6; i++) {
@@ -391,9 +403,9 @@ public final class MobBuffService {
 
     private MobBalanceSettings.PotionEffectSpec chooseEffect(List<MobBalanceSettings.PotionEffectSpec> effects,
                                                                RandomGenerator random) {
-        int totalWeight = effects.stream().mapToInt(MobBalanceSettings.PotionEffectSpec::weight).sum();
+        long totalWeight = effects.stream().mapToLong(MobBalanceSettings.PotionEffectSpec::weight).sum();
         if (totalWeight <= 0) return null;
-        int roll = random.nextInt(totalWeight);
+        long roll = random.nextLong(totalWeight);
         for (MobBalanceSettings.PotionEffectSpec effect : effects) {
             roll -= effect.weight();
             if (roll < 0) return effect;

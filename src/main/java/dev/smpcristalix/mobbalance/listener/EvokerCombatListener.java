@@ -31,6 +31,7 @@ public final class EvokerCombatListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onEvokerDeath(EntityDeathEvent event) {
         if (!(event.getEntity() instanceof Evoker evoker)) return;
+        if (!mobBuffService.shouldApplyGlobalRules(evoker)) return;
 
         if (mobBuffService.isBuffed(evoker)) {
             mobBuffService.handleEvokerDeath(evoker, event.getDrops());

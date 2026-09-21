@@ -3,6 +3,7 @@ package dev.smpcristalix.mobbalance.config;
 import org.bukkit.Difficulty;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.EntityType;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.potion.PotionEffectType;
 
 import java.util.ArrayList;
@@ -52,11 +53,25 @@ public final class MobBalanceSettings {
     private final RangedRateSpec breeze;
     private final RangedRateSpec blaze;
     private final GhastSpec ghast;
+    private final boolean slimeEnabled;
+    private final boolean witherSkeletonEnabled;
+    private final boolean piglinCrossbowBuff;
 
     private MobBalanceSettings(FileConfiguration config) {
         enabled = config.getBoolean("general.enabled", true);
         difficulty = parseDifficulty(config.getString("general.difficulty", "HARD"));
-        spawnReasons = Collections.unmodifiableSet(new HashSet<>(config.getStringList("general.spawn-reasons")));
+        Set<String> parsedReasons = new HashSet<>();
+        for (String raw : config.getStringList("general.spawn-reasons")) {
+            if (raw == null || raw.isBlank()) continue;
+            String normalized = raw.trim().toUpperCase(java.util.Locale.ROOT);
+            try {
+                CreatureSpawnEvent.SpawnReason.valueOf(normalized);
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException("Unknown general.spawn-reasons value: " + raw);
+            }
+            parsedReasons.add(normalized);
+        }
+        spawnReasons = Collections.unmodifiableSet(parsedReasons);
 
         healthBonus = new PercentRange(
                 config.getDouble("stats.health-bonus-min-percent", 0.0),
@@ -125,7 +140,8 @@ public final class MobBalanceSettings {
         endermanSpeedMultiplier = positiveOrOne(config.getDouble("enderman.speed-multiplier", 1.55));
         phantomSpeedMultiplier = positiveOrOne(config.getDouble("phantom.speed-multiplier", 1.35));
 
-        pillagerQuickChargeLevel = Math.max(1, config.getInt("pillager.quick-charge-level", 3));
+        pillagerQuickChargeLevel = boundedInt(
+                config.getInt("pillager.quick-charge-level", 3), 1, 5, "pillager.quick-charge-level");
         vindicatorSpeedMultiplier = positiveOrOne(config.getDouble("vindicator.speed-multiplier", 1.25));
         evoker = new EvokerSpec(
                 probability(config.getDouble("evoker.totem-drop-chance", 0.50)),
@@ -141,6 +157,9 @@ public final class MobBalanceSettings {
                 Math.max(1, config.getInt("ghast.extra-shot-delay-ticks", 10)),
                 positiveOrOne(config.getDouble("ghast.damage-multiplier", 1.35))
         );
+        slimeEnabled = config.getBoolean("slime.enabled", true);
+        witherSkeletonEnabled = config.getBoolean("wither-skeleton.enabled", true);
+        piglinCrossbowBuff = config.getBoolean("piglin.crossbow-buff", true);
     }
 
     public static MobBalanceSettings from(FileConfiguration config) { return new MobBalanceSettings(config); }
@@ -184,10 +203,13 @@ public final class MobBalanceSettings {
     public RangedRateSpec breezeSpec() { return breeze; }
     public RangedRateSpec blazeSpec() { return blaze; }
     public GhastSpec ghastSpec() { return ghast; }
+    public boolean slimeEnabled() { return slimeEnabled; }
+    public boolean witherSkeletonEnabled() { return witherSkeletonEnabled; }
+    public boolean piglinCrossbowBuff() { return piglinCrossbowBuff; }
 
     private static SpiderSpec readSpiderSpec(FileConfiguration config, String root, double speed, int duration, int amplifier) {
         return new SpiderSpec(
-                Math.max(0.0, config.getDouble(root + ".speed-multiplier", speed)),
+                nonNegative(config.getDouble(root + ".speed-multiplier", speed)),
                 Math.max(1, config.getInt(root + ".poison-duration-ticks", duration)),
                 Math.max(0, config.getInt(root + ".poison-amplifier", amplifier))
         );
@@ -229,8 +251,8 @@ public final class MobBalanceSettings {
     private static Difficulty parseDifficulty(String raw) {
         try {
             return Difficulty.valueOf(raw == null ? "HARD" : raw.toUpperCase());
-        } catch (IllegalArgumentException ignored) {
-            return Difficulty.HARD;
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Unknown general.difficulty: " + raw);
         }
     }
 
@@ -238,9 +260,28 @@ public final class MobBalanceSettings {
         return Math.min(probability(cap), probability(base) * positive(multiplier));
     }
 
-    private static double probability(double value) { return Math.max(0.0, Math.min(1.0, value)); }
-    private static double positive(double value) { return Math.max(0.0, value); }
-    private static double positiveOrOne(double value) { return value > 0.0 ? value : 1.0; }
+    private static double probability(double value) {
+        if (!Double.isFinite(value)) throw new IllegalArgumentException("Probability must be finite: " + value);
+        return Math.max(0.0, Math.min(1.0, value));
+    }
+    private static double positive(double value) {
+        if (!Double.isFinite(value)) throw new IllegalArgumentException("Multiplier must be finite: " + value);
+        return Math.max(0.0, value);
+    }
+    private static double positiveOrOne(double value) {
+        if (!Double.isFinite(value)) throw new IllegalArgumentException("Multiplier must be finite: " + value);
+        return value > 0.0 ? value : 1.0;
+    }
+    private static double nonNegative(double value) {
+        if (!Double.isFinite(value)) throw new IllegalArgumentException("Numeric setting must be finite: " + value);
+        return Math.max(0.0, value);
+    }
+    private static int boundedInt(int value, int min, int max, String path) {
+        if (value < min || value > max) {
+            throw new IllegalArgumentException(path + " must be between " + min + " and " + max);
+        }
+        return value;
+    }
     private static int weight(FileConfiguration config, String path, int fallback) { return Math.max(0, config.getInt(path, fallback)); }
 
     public record PotionEffectSpec(PotionEffectType type, int weight, int durationTicks, int amplifier) {}
@@ -253,6 +294,9 @@ public final class MobBalanceSettings {
 
     private record PercentRange(double minPercent, double maxPercent) {
         private PercentRange {
+            if (!Double.isFinite(minPercent) || !Double.isFinite(maxPercent)) {
+                throw new IllegalArgumentException("Stat percent ranges must be finite");
+            }
             minPercent = Math.max(0.0, minPercent);
             maxPercent = Math.max(minPercent, maxPercent);
         }
